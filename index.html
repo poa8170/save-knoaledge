@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="微光知識庫：整理學習、設計與數位工具的繁體中文筆記。" />
+    <title>微光知識庫｜把想法整理成可以回看的路徑</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要內容</a>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html" aria-label="微光知識庫首頁">
+          <span class="brand-mark" aria-hidden="true">✳</span>
+          <span>微光<span class="brand-light">知識庫</span></span>
+        </a>
+        <nav aria-label="主要導覽">
+          <a href="#notes">瀏覽筆記</a>
+          <a href="#about">關於這裡</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero container" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> PERSONAL KNOWLEDGE BASE · 2026</p>
+          <h1 id="hero-title">讓每個想法，<br /><em>都有回來的路。</em></h1>
+          <p class="hero-intro">這是一個慢慢長大的個人知識庫。記下學習裡還沒想完的片段，讓未來的自己可以接著走。</p>
+          <a class="text-link" href="#notes">開始閱讀 <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hero-note" aria-label="知識庫小提醒">
+          <div class="note-spark" aria-hidden="true">✦</div>
+          <p class="note-label">TODAY'S REMINDER</p>
+          <p class="note-quote">「整理不是把事情結束，而是替下一次開始留下線索。」</p>
+          <p class="note-signature">— 微光筆記，No. 001</p>
+        </div>
+      </section>
+
+      <section class="stats container" aria-label="知識庫統計">
+        <div><strong id="note-count">0</strong><span>則筆記</span></div>
+        <div><strong>04</strong><span>個主題</span></div>
+        <div><strong>∞</strong><span>可以繼續的想法</span></div>
+      </section>
+
+      <section class="notes-section container" id="notes" aria-labelledby="notes-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">THE LIBRARY</p>
+            <h2 id="notes-title">最近整理的筆記</h2>
+          </div>
+          <p class="section-description">從一個問題開始，找到一個值得帶走的片段。</p>
+        </div>
+
+        <div class="controls" aria-label="筆記搜尋與篩選">
+          <label class="search-box">
+            <span class="sr-only">搜尋筆記</span>
+            <span aria-hidden="true">⌕</span>
+            <input id="search-input" type="search" placeholder="搜尋標題、摘要或標籤" autocomplete="off" />
+          </label>
+          <div class="category-list" id="category-list" role="group" aria-label="依分類篩選">
+            <button class="filter-button is-active" type="button" data-category="all" aria-pressed="true">全部</button>
+            <button class="filter-button" type="button" data-category="學習方法" aria-pressed="false">學習方法</button>
+            <button class="filter-button" type="button" data-category="數位工具" aria-pressed="false">數位工具</button>
+            <button class="filter-button" type="button" data-category="設計觀察" aria-pressed="false">設計觀察</button>
+            <button class="filter-button" type="button" data-category="生活實驗" aria-pressed="false">生活實驗</button>
+          </div>
+        </div>
+
+        <div class="results-line" aria-live="polite"><span id="results-count">正在整理</span><button id="clear-filters" class="clear-button" type="button" hidden>清除篩選</button></div>
+        <div class="notes-grid" id="notes-grid"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <span aria-hidden="true">◌</span>
+          <h3>還沒有找到這樣的筆記</h3>
+          <p>試著換一個關鍵字，或回到全部分類。</p>
+        </div>
+      </section>
+
+      <section class="about-section" id="about" aria-labelledby="about-title">
+        <div class="container about-grid">
+          <div>
+            <p class="eyebrow">WHY THIS PLACE EXISTS</p>
+            <h2 id="about-title">把知識放在<br /><em>可以繼續的地方。</em></h2>
+          </div>
+          <div class="about-copy">
+            <p>我想要的不是一個塞滿連結的收藏夾，而是一個能看見思考如何變化的地方。每篇筆記都保留日期、脈絡與下一步，讓內容不只被保存，也能重新被使用。</p>
+            <div class="about-rule"></div>
+            <p class="small-copy">這個網站的規則寫在 <code>AGENTS.md</code>。下一次新增內容時，AI 可以依照同一套欄位與流程繼續整理。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-wrap">
+        <p>微光知識庫 <span aria-hidden="true">·</span> 持續整理中</p>
+        <p class="footer-mono">MADE WITH CURIOSITY / <span id="current-year">2026</span></p>
+      </div>
+    </footer>
+
+    <dialog class="note-dialog" id="note-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-inner">
+        <button class="dialog-close" id="dialog-close" type="button" aria-label="關閉筆記詳情">×</button>
+        <p class="eyebrow" id="dialog-category">NOTE</p>
+        <h2 id="dialog-title"></h2>
+        <div class="dialog-meta" id="dialog-meta"></div>
+        <div class="dialog-body" id="dialog-body"></div>
+        <div class="dialog-tags" id="dialog-tags"></div>
+      </div>
+    </dialog>
+
+    <script src="content/notes.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
