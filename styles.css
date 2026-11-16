@@ -75,12 +75,16 @@ h2 { margin-bottom: 0; font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.05
 .filter-button:hover, .filter-button:focus-visible { border-color: var(--line); color: var(--ink); }
 .filter-button.is-active { color: var(--paper); background: var(--ink); }
 .results-line { display: flex; justify-content: space-between; align-items: center; min-height: 25px; margin-bottom: 17px; color: var(--ink-soft); font-family: "DM Mono", monospace; font-size: .67rem; }
+.results-actions { display: flex; align-items: center; gap: 16px; }
+.storage-status { color: var(--ink-soft); }
+.storage-status[data-state="saved"] { color: var(--mint-dark); }
+.storage-status[data-state="warning"] { color: #a35a46; }
 .clear-button { padding: 0; border: 0; color: var(--mint-dark); background: transparent; font-size: .72rem; text-decoration: underline; text-underline-offset: 3px; }
 .notes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-.note-card { display: flex; flex-direction: column; min-height: 312px; padding: 22px; border: 1px solid var(--line); background: #e6eee9; transition: transform .25s, box-shadow .25s, border-color .25s; animation: card-in .5s both; animation-delay: calc(var(--card-index) * 45ms); }
+.note-card { display: flex; flex-direction: column; min-height: 312px; padding: 22px; border: 1px solid var(--line); background: #e6eee9; cursor: pointer; transition: transform .25s, box-shadow .25s, border-color .25s; animation: card-in .5s both; animation-delay: calc(var(--card-index) * 45ms); }
 .note-card:nth-child(even) { background: #fff; }
 .note-card:hover { border-color: rgba(44, 117, 107, .4); box-shadow: var(--shadow); transform: translateY(-5px); }
-.note-card.add-note-card { background: #fff; border-style: dashed; }
+.note-card.add-note-card { width: 100%; color: var(--ink); text-align: left; background: #fff; border-style: dashed; font: inherit; appearance: none; }
 .add-note-card:hover { border-color: var(--mint-dark); }
 .add-note-symbol { display: grid; width: 42px; height: 42px; place-items: center; color: var(--mint-dark); border: 1px solid rgba(44, 117, 107, .35); border-radius: 50%; font-size: 1.5rem; line-height: 1; }
 .add-note-card .card-content { display: flex; flex-direction: column; justify-content: center; }
@@ -116,9 +120,10 @@ code { padding: 2px 5px; color: var(--mint); background: rgba(185, 216, 206, .1)
 .footer-wrap p { margin: 0; }
 .footer-mono { font-family: "DM Mono", monospace; font-size: .61rem; letter-spacing: .06em; }
 
-.note-dialog { width: min(650px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 0; color: var(--ink); background: var(--paper); border: 0; box-shadow: 0 25px 80px rgba(0, 0, 0, .22); }
-.note-dialog::backdrop { background: rgba(12, 35, 33, .62); backdrop-filter: blur(4px); }
+.note-dialog, .editor-dialog { width: min(650px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 0; color: var(--ink); background: var(--paper); border: 0; box-shadow: 0 25px 80px rgba(0, 0, 0, .22); }
+.note-dialog::backdrop, .editor-dialog::backdrop { background: rgba(12, 35, 33, .62); backdrop-filter: blur(4px); }
 .dialog-inner { position: relative; padding: clamp(30px, 6vw, 62px); }
+.editor-dialog .dialog-inner { max-height: calc(100vh - 32px); overflow-y: auto; }
 .dialog-close { position: absolute; top: 19px; right: 22px; width: 35px; height: 35px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: transparent; font-size: 1.4rem; line-height: 1; }
 .dialog-close:hover, .dialog-close:focus-visible { color: var(--paper); background: var(--ink); }
 .note-dialog h2 { max-width: 500px; margin-bottom: 14px; font-size: clamp(1.9rem, 5vw, 3rem); }
@@ -127,6 +132,21 @@ code { padding: 2px 5px; color: var(--mint); background: rgba(185, 216, 206, .1)
 .dialog-body p { margin-bottom: 18px; }
 .dialog-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 27px; }
 .dialog-tags span { padding: 4px 10px; color: var(--mint-dark); border: 1px solid rgba(44, 117, 107, .3); border-radius: 999px; font-size: .68rem; }
+.dialog-actions, .editor-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+.secondary-button, .primary-button, .danger-button { padding: 9px 16px; border: 1px solid transparent; border-radius: 999px; font-size: .76rem; font-weight: 700; transition: .2s ease; }
+.secondary-button { border-color: var(--line); color: var(--ink); background: transparent; }
+.secondary-button:hover, .secondary-button:focus-visible { border-color: var(--ink); }
+.primary-button { color: var(--paper); background: var(--ink); }
+.primary-button:hover, .primary-button:focus-visible { background: var(--mint-dark); }
+.danger-button { color: #a35a46; border-color: rgba(163, 90, 70, .3); background: transparent; }
+.danger-button:hover, .danger-button:focus-visible { color: #fff; border-color: #a35a46; background: #a35a46; }
+.editor-help { max-width: 500px; margin: 12px 0 27px; color: var(--ink-soft); font-size: .82rem; line-height: 1.8; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.field-label { display: block; margin-bottom: 17px; color: var(--ink); font-size: .78rem; font-weight: 700; }
+.field-label input, .field-label select, .field-label textarea { display: block; width: 100%; margin-top: 7px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; outline: 0; color: var(--ink); background: rgba(255, 255, 255, .72); font-size: .84rem; font-weight: 400; }
+.field-label textarea { min-height: 78px; resize: vertical; line-height: 1.7; }
+.field-label input:focus, .field-label select:focus, .field-label textarea:focus { border-color: var(--mint-dark); box-shadow: 0 0 0 3px rgba(44, 117, 107, .1); }
+.field-hint { display: block; margin-top: 5px; color: var(--ink-soft); font-size: .68rem; font-weight: 400; }
 
 @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -146,8 +166,11 @@ code { padding: 2px 5px; color: var(--mint); background: rgba(185, 216, 206, .1)
   .controls { display: block; }
   .search-box { width: 100%; margin-bottom: 15px; }
   .category-list { justify-content: start; }
+  .results-line { align-items: start; gap: 12px; }
+  .results-actions { flex-wrap: wrap; justify-content: end; gap: 8px 12px; }
   .notes-grid { grid-template-columns: 1fr; }
   .note-card { min-height: 280px; }
+  .form-grid { grid-template-columns: 1fr; gap: 0; }
   .about-section { padding: 75px 0; }
   .about-grid { display: block; }
   .about-copy { padding-top: 32px; }

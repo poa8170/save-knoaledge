@@ -70,7 +70,14 @@
           </div>
         </div>
 
-        <div class="results-line" aria-live="polite"><span id="results-count">正在整理</span><button id="clear-filters" class="clear-button" type="button" hidden>清除篩選</button></div>
+        <div class="results-line" aria-live="polite">
+          <span id="results-count">正在整理</span>
+          <div class="results-actions">
+            <span id="storage-status" class="storage-status">載入中</span>
+            <button id="export-notes" class="clear-button" type="button">匯出 JSON</button>
+            <button id="clear-filters" class="clear-button" type="button" hidden>清除篩選</button>
+          </div>
+        </div>
         <div class="notes-grid" id="notes-grid"></div>
         <div class="empty-state" id="empty-state" hidden>
           <span aria-hidden="true">◌</span>
@@ -109,7 +116,59 @@
         <div class="dialog-meta" id="dialog-meta"></div>
         <div class="dialog-body" id="dialog-body"></div>
         <div class="dialog-tags" id="dialog-tags"></div>
+        <div class="dialog-actions">
+          <button class="secondary-button" id="edit-note" type="button">編輯筆記</button>
+          <button class="danger-button" id="delete-note" type="button">刪除筆記</button>
+        </div>
       </div>
+    </dialog>
+
+    <dialog class="editor-dialog" id="editor-dialog" aria-labelledby="editor-title">
+      <form class="editor-form" id="note-form">
+        <div class="dialog-inner">
+          <button class="dialog-close" id="editor-close" type="button" aria-label="關閉編輯器">×</button>
+          <p class="eyebrow">NOTE EDITOR</p>
+          <h2 id="editor-title">新增一則筆記</h2>
+          <p class="editor-help">內容會先保存到這個瀏覽器。需要換裝置時，請先使用「匯出 JSON」。</p>
+
+          <div class="form-grid">
+            <label class="field-label" for="note-title">標題
+              <input id="note-title" name="title" type="text" maxlength="80" required />
+            </label>
+            <label class="field-label" for="note-category">分類
+              <select id="note-category" name="category" required>
+                <option value="學習方法">學習方法</option>
+                <option value="數位工具">數位工具</option>
+                <option value="設計觀察">設計觀察</option>
+                <option value="生活實驗">生活實驗</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field-label" for="note-summary">摘要
+            <textarea id="note-summary" name="summary" rows="3" maxlength="180" required></textarea>
+          </label>
+
+          <label class="field-label" for="note-body">筆記內容
+            <textarea id="note-body" name="body" rows="9" required placeholder="每個段落之間空一行，之後可以再回來繼續寫。"></textarea>
+            <span class="field-hint">每個段落之間空一行，儲存時會自動分段。</span>
+          </label>
+
+          <div class="form-grid">
+            <label class="field-label" for="note-tags">標籤
+              <input id="note-tags" name="tags" type="text" placeholder="例如：筆記, 反思" />
+            </label>
+            <label class="field-label" for="note-read-time">閱讀時間
+              <input id="note-read-time" name="readTime" type="text" placeholder="例如：5 分鐘" />
+            </label>
+          </div>
+
+          <div class="editor-actions">
+            <button class="secondary-button" id="editor-cancel" type="button">取消</button>
+            <button class="primary-button" type="submit">儲存筆記</button>
+          </div>
+        </div>
+      </form>
     </dialog>
 
     <script src="content/notes.js"></script>

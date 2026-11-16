@@ -5,9 +5,9 @@
 ## 專案亮點
 
 - 零建置步驟：HTML、CSS、JavaScript 可直接部署到 GitHub Pages。
-- 資料與介面分離：筆記集中放在 `content/notes.js`，不需要手動複製卡片 HTML。
+- 資料與介面分離：`content/notes.js` 提供預設筆記，瀏覽器用 `localStorage` 保存新增、編輯與刪除後的版本。
 - 可延伸規則：`AGENTS.md` 定義內容格式、命名、無障礙與 AI 修改流程。
-- 具體互動：搜尋、分類篩選、清除條件、精選筆記與 hash 詳情視窗。
+- 具體互動：搜尋、分類篩選、清除條件、筆記詳情、編輯、刪除與 JSON 匯出。
 
 ## 網站地圖
 
@@ -27,6 +27,12 @@ python -m http.server 8000
 
 再開啟 <http://localhost:8000>。直接雙擊 HTML 也能看到靜態畫面，但使用伺服器更接近 GitHub Pages 的環境。
 
+新增、編輯或刪除的筆記會留在目前瀏覽器的 `localStorage`。要備份或換裝置，請在筆記列表按「匯出 JSON」。這個版本不會直接寫回 Git repository 或 Obsidian Vault。
+
+## Obsidian 與 LLM Wiki 評估
+
+Obsidian Vault 可以作為未來的 raw source，但目前不直接把整個 Vault 匯入網站。少量筆記先由 AI 依照 `AGENTS.md` 轉成標題、摘要、段落、標籤與日期，再人工確認後加入資料。當來源數量增加、筆記需要大量交叉連結或出現矛盾時，才評估導入 LLM Wiki 的 `index.md`、`log.md`、來源引用與 lint 流程；完整評估與匯入規則請看 `AGENTS.md`。
+
 ## 發布到 GitHub Pages
 
 1. 在 GitHub 建立一個新的 repository，例如 `glow-knowledge-base`。
@@ -36,4 +42,4 @@ python -m http.server 8000
 
 ## 之後如何新增內容
 
-閱讀 `AGENTS.md` 的「筆記資料格式」與「新增一個頁面的流程」，在 `content/notes.js` 增加符合欄位順序的物件即可。AI 會依照同一份資料來源自動產生卡片與詳情內容，不必重新設計頁面。
+閱讀 `AGENTS.md` 的「筆記資料格式」與「新增一個頁面的流程」。一般使用者可直接點擊「新增一則筆記」使用編輯器；若要把內容提交到專案，則在 `content/notes.js` 增加符合欄位順序的物件。AI 會依照同一份資料來源自動產生卡片與詳情內容，不必重新設計頁面。
