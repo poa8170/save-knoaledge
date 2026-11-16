@@ -1,0 +1,10 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">燈泡</title>
+  <desc id="desc">一盞代表想法與重新思考的燈泡</desc>
+  <path d="M39.5 52.5C39.5 35.655 53.155 22 70 22C86.845 22 100.5 35.655 100.5 52.5C100.5 64.178 93.935 74.322 84.5 79.611V88.5C84.5 91.538 82.038 94 79 94H61C57.962 94 55.5 91.538 55.5 88.5V79.611C46.065 74.322 39.5 64.178 39.5 52.5Z" fill="#B9D8CE"/>
+  <path d="M55.5 79.5C46.05 74.211 39.5 64.068 39.5 52.5C39.5 35.655 53.155 22 70 22C86.845 22 100.5 35.655 100.5 52.5C100.5 64.068 93.95 74.211 84.5 79.5" stroke="#2C756B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M55.5 80H84.5M56.5 88H83.5" stroke="#2C756B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M67 94V101H77V94" stroke="#2C756B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M70 2V10M26.5 18.5L32 24M113.5 18.5L108 24M14 52H22M118 52H110" stroke="#E68D72" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="70" cy="52" r="12" fill="#F7F5EF" fill-opacity=".7"/>
+</svg>

@@ -3,6 +3,12 @@
 
   const sourceNotes = Array.isArray(window.KNOWLEDGE_ENTRIES) ? window.KNOWLEDGE_ENTRIES : [];
   const STORAGE_KEY = "glow-knowledge-base:notes:v1";
+  const CATEGORIES_KEY = "glow-knowledge-base:categories:v1";
+  const REMINDER_KEY = "glow-knowledge-base:reminder:v1";
+  const DEFAULT_REMINDER = {
+    text: "整理不是把事情結束，而是替下一次開始留下線索。",
+    createdAt: "2026-11-16T00:00:00.000Z"
+  };
   const storage = (() => {
     try {
       return window.localStorage;
@@ -15,9 +21,12 @@
   const searchInput = document.querySelector("#search-input");
   const resultsCount = document.querySelector("#results-count");
   const clearFilters = document.querySelector("#clear-filters");
+  const importButton = document.querySelector("#import-obsidian");
+  const importFolderButton = document.querySelector("#import-obsidian-folder");
   const exportButton = document.querySelector("#export-notes");
   const storageStatus = document.querySelector("#storage-status");
   const noteCount = document.querySelector("#note-count");
+  const categoryCount = document.querySelector("#category-count");
   const dialog = document.querySelector("#note-dialog");
   const dialogClose = document.querySelector("#dialog-close");
   const editNoteButton = document.querySelector("#edit-note");
@@ -33,10 +42,40 @@
   const bodyInput = document.querySelector("#note-body");
   const tagsInput = document.querySelector("#note-tags");
   const readTimeInput = document.querySelector("#note-read-time");
+  const categoryList = document.querySelector("#category-list");
+  const manageCategoriesButton = document.querySelector("#manage-categories");
+  const categoryDialog = document.querySelector("#category-dialog");
+  const categoryDialogClose = document.querySelector("#category-dialog-close");
+  const categoryForm = document.querySelector("#category-form");
+  const categoryNameInput = document.querySelector("#category-name-input");
+  const categoryOptions = document.querySelector("#category-options");
+  const categorySubmit = document.querySelector("#category-submit");
+  const categoryCancelEdit = document.querySelector("#category-cancel-edit");
+  const categoryItems = document.querySelector("#category-items");
+  const reminderText = document.querySelector("#reminder-text");
+  const reminderCreated = document.querySelector("#reminder-created");
+  const editReminderButton = document.querySelector("#edit-reminder");
+  const reminderDialog = document.querySelector("#reminder-dialog");
+  const reminderClose = document.querySelector("#reminder-close");
+  const reminderCancel = document.querySelector("#reminder-cancel");
+  const reminderForm = document.querySelector("#reminder-form");
+  const reminderInput = document.querySelector("#reminder-input");
+  const obsidianInput = document.querySelector("#obsidian-input");
+  const obsidianFolderInput = document.querySelector("#obsidian-folder-input");
+  const importDialog = document.querySelector("#import-dialog");
+  const importClose = document.querySelector("#import-close");
+  const importCancel = document.querySelector("#import-cancel");
+  const importConfirm = document.querySelector("#import-confirm");
+  const importSummary = document.querySelector("#import-summary");
+  const importPreview = document.querySelector("#import-preview");
   let activeCategory = "all";
   let activeQuery = "";
   let currentNoteId = null;
   let editingNoteId = null;
+  let categories = [];
+  let editingCategoryName = null;
+  let reminder = DEFAULT_REMINDER;
+  let pendingImports = [];
 
   const escapeHtml = (value) => String(value)
     .replaceAll("&", "&amp;")
@@ -60,6 +99,9 @@
     body: Array.isArray(note.body) ? note.body.map(String).filter(Boolean) : [],
     tags: Array.isArray(note.tags) ? note.tags.map(String).filter(Boolean) : [],
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(note.date || "")) ? String(note.date) : todayIso(),
+    createdAt: String(note.createdAt || `${note.date || todayIso()}T12:00:00.000Z`),
+    lastViewedAt: note.lastViewedAt ? String(note.lastViewedAt) : "",
+    sourcePath: String(note.sourcePath || ""),
     readTime: String(note.readTime || "3 分鐘"),
     featured: Boolean(note.featured)
   });
@@ -80,6 +122,70 @@
   };
 
   let notes = loadNotes();
+
+  const categoryActivity = (category) => Math.max(
+    Date.parse(category.lastClickedAt || "") || 0,
+    Date.parse(category.lastCreatedAt || "") || 0,
+    Date.parse(category.createdAt || "") || 0
+  );
+
+  const categoryFromNote = (name, note) => ({
+    name,
+    createdAt: note?.createdAt || `${note?.date || todayIso()}T12:00:00.000Z`,
+    lastClickedAt: "",
+    lastCreatedAt: note?.createdAt || `${note?.date || todayIso()}T12:00:00.000Z`
+  });
+
+  const loadCategories = () => {
+    let stored = [];
+    try {
+      const raw = storage?.getItem(CATEGORIES_KEY);
+      stored = raw ? JSON.parse(raw) : [];
+    } catch {
+      stored = [];
+    }
+    const result = Array.isArray(stored)
+      ? stored.filter((item) => item && typeof item.name === "string" && item.name.trim()).map((item) => ({
+        name: item.name.trim(),
+        createdAt: String(item.createdAt || new Date().toISOString()),
+        lastClickedAt: String(item.lastClickedAt || ""),
+        lastCreatedAt: String(item.lastCreatedAt || "")
+      }))
+      : [];
+    notes.forEach((note) => {
+      if (!result.some((category) => category.name === note.category)) result.push(categoryFromNote(note.category, note));
+    });
+    return result;
+  };
+
+  const saveCategories = () => {
+    if (!storage) {
+      setStorageStatus("類別只保留在本次開啟", "warning");
+      return;
+    }
+    try {
+      storage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+    } catch {
+      setStorageStatus("類別只保留在本次開啟", "warning");
+    }
+  };
+
+  const loadReminder = () => {
+    try {
+      const raw = storage?.getItem(REMINDER_KEY);
+      if (!raw) return { ...DEFAULT_REMINDER };
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.text === "string" && parsed.text.trim()) {
+        return { text: parsed.text.trim(), createdAt: String(parsed.createdAt || todayIso()) };
+      }
+    } catch {
+      return { ...DEFAULT_REMINDER };
+    }
+    return { ...DEFAULT_REMINDER };
+  };
+
+  categories = loadCategories();
+  reminder = loadReminder();
 
   const setStorageStatus = (message, state = "") => {
     storageStatus.textContent = message;
@@ -106,6 +212,40 @@
     return new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "short", day: "numeric" }).format(parsed);
   };
 
+  const formatDateTime = (date) => {
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "時間未記錄";
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(parsed);
+  };
+
+  const touchCategory = (name, type) => {
+    const category = categories.find((item) => item.name === name);
+    if (!category) return;
+    const now = new Date().toISOString();
+    if (type === "clicked") category.lastClickedAt = now;
+    if (type === "created") category.lastCreatedAt = now;
+    saveCategories();
+  };
+
+  const saveReminder = () => {
+    if (!storage) {
+      setStorageStatus("提醒只保留在本次開啟", "warning");
+      return;
+    }
+    try {
+      storage.setItem(REMINDER_KEY, JSON.stringify(reminder));
+      setStorageStatus("已保存到本機", "saved");
+    } catch {
+      setStorageStatus("提醒只保留在本次開啟", "warning");
+    }
+  };
+
   const makeId = (title) => {
     const base = title.toLowerCase()
       .normalize("NFKD")
@@ -126,6 +266,66 @@
     const matchesQuery = !activeQuery || searchable.includes(activeQuery.toLowerCase());
     const matchesCategory = activeCategory === "all" || note.category === activeCategory;
     return matchesQuery && matchesCategory;
+  };
+
+  const sortNotesByRecentClick = () => {
+    notes.sort((a, b) => {
+      const aTime = Date.parse(a.lastViewedAt || "") || Date.parse(a.createdAt || "") || 0;
+      const bTime = Date.parse(b.lastViewedAt || "") || Date.parse(b.createdAt || "") || 0;
+      return bTime - aTime;
+    });
+  };
+
+  const renderCategoryOptions = () => {
+    categoryOptions.innerHTML = categories
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"))
+      .map((category) => `<option value="${escapeHtml(category.name)}"></option>`)
+      .join("");
+  };
+
+  const renderCategoryButtons = () => {
+    renderCategoryOptions();
+    const recentCategories = [...categories]
+      .sort((a, b) => categoryActivity(b) - categoryActivity(a))
+      .slice(0, 4);
+    if (activeCategory !== "all" && !recentCategories.some((category) => category.name === activeCategory)) {
+      const active = categories.find((category) => category.name === activeCategory);
+      if (active) recentCategories.push(active);
+    }
+    categoryList.innerHTML = [
+      '<button class="filter-button is-active" type="button" data-category="all" aria-pressed="true">全部</button>',
+      ...recentCategories.map((category) => `<button class="filter-button" type="button" data-category="${escapeHtml(category.name)}" aria-pressed="false">${escapeHtml(category.name)}</button>`)
+    ].join("");
+    syncFilterButtons();
+    categoryList.querySelectorAll("[data-category]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeCategory = button.dataset.category;
+        if (activeCategory !== "all") touchCategory(activeCategory, "clicked");
+        render();
+      });
+    });
+  };
+
+  const renderCategoryManager = () => {
+    const sorted = [...categories].sort((a, b) => categoryActivity(b) - categoryActivity(a));
+    categoryItems.innerHTML = sorted.map((category) => `
+      <li class="category-item">
+        <div>
+          <strong>${escapeHtml(category.name)}</strong>
+          <small>最近活動：${formatDateTime(categoryActivity(category) ? new Date(categoryActivity(category)).toISOString() : category.createdAt)}</small>
+        </div>
+        <div class="category-item-actions">
+          <button class="secondary-button" type="button" data-edit-category="${escapeHtml(category.name)}">編輯</button>
+          <button class="danger-button" type="button" data-delete-category="${escapeHtml(category.name)}">刪除</button>
+        </div>
+      </li>`).join("");
+    categoryItems.querySelectorAll("[data-edit-category]").forEach((button) => {
+      button.addEventListener("click", () => startCategoryEdit(button.dataset.editCategory));
+    });
+    categoryItems.querySelectorAll("[data-delete-category]").forEach((button) => {
+      button.addEventListener("click", () => deleteCategory(button.dataset.deleteCategory));
+    });
   };
 
   const renderCard = (note, index) => `
@@ -155,11 +355,14 @@
     </button>`;
 
   const render = () => {
+    sortNotesByRecentClick();
+    renderCategoryButtons();
     const visibleNotes = notes.filter(noteMatches);
     grid.innerHTML = `${visibleNotes.map(renderCard).join("")}${renderAddCard(visibleNotes.length)}`;
     emptyState.hidden = visibleNotes.length !== 0;
     resultsCount.textContent = `顯示 ${visibleNotes.length} / ${notes.length} 則筆記`;
     noteCount.textContent = String(notes.length).padStart(2, "0");
+    categoryCount.textContent = String(categories.length).padStart(2, "0");
     clearFilters.hidden = !activeQuery && activeCategory === "all";
     grid.querySelectorAll("[data-note-id]").forEach((button) => {
       button.addEventListener("click", () => openNote(button.dataset.noteId));
@@ -174,7 +377,7 @@
   };
 
   const syncFilterButtons = () => {
-    document.querySelectorAll("[data-category]").forEach((button) => {
+    categoryList.querySelectorAll("[data-category]").forEach((button) => {
       const isActive = button.dataset.category === activeCategory;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", String(isActive));
@@ -195,6 +398,9 @@
     const note = notes.find((item) => item.id === id);
     if (!note) return;
     currentNoteId = id;
+    note.lastViewedAt = new Date().toISOString();
+    saveNotes();
+    render();
     document.querySelector("#dialog-category").textContent = note.category;
     document.querySelector("#dialog-title").textContent = note.title;
     document.querySelector("#dialog-meta").textContent = `${formatDate(note.date)}  ·  ${note.readTime}`;
@@ -216,7 +422,7 @@
     editingNoteId = note ? note.id : null;
     editorTitle.textContent = note ? "編輯筆記" : "新增一則筆記";
     titleInput.value = note ? note.title : "";
-    categoryInput.value = note ? note.category : "學習方法";
+    categoryInput.value = note ? note.category : (categories[0]?.name || "");
     summaryInput.value = note ? note.summary : "";
     bodyInput.value = note ? note.body.join("\n\n") : "";
     tagsInput.value = note ? note.tags.join(", ") : "";
@@ -246,6 +452,8 @@
     const readTime = readTimeInput.value.trim() || `${Math.max(1, Math.ceil(body.join(" ").length / 280))} 分鐘`;
     const id = editingNoteId || makeId(title);
     const previous = editingNoteId ? notes.find((note) => note.id === editingNoteId) : null;
+    ensureCategory(categoryInput.value);
+    touchCategory(categoryInput.value, "created");
     const updatedNote = {
       id,
       title,
@@ -254,6 +462,8 @@
       body,
       tags,
       date: todayIso(),
+      createdAt: previous ? previous.createdAt : new Date().toISOString(),
+      lastViewedAt: previous ? previous.lastViewedAt : "",
       readTime,
       featured: previous ? Boolean(previous.featured) : false
     };
@@ -291,13 +501,267 @@
     setStorageStatus("已匯出 JSON", "saved");
   };
 
-  document.querySelectorAll("[data-category]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeCategory = button.dataset.category;
-      syncFilterButtons();
-      render();
+  const parseFrontmatterValue = (value) => {
+    const clean = value.trim().replace(/^['"]|['"]$/g, "");
+    if (clean.startsWith("[") && clean.endsWith("]")) {
+      return clean.slice(1, -1).split(",").map((item) => item.trim().replace(/^['"]|['"]$/g, "")).filter(Boolean);
+    }
+    return clean;
+  };
+
+  const parseFrontmatter = (text) => {
+    const match = text.match(/^\uFEFF?---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/);
+    if (!match) return { data: {}, body: text };
+    const data = {};
+    const lines = match[1].split(/\r?\n/);
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const field = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+      if (!field) continue;
+      const key = field[1];
+      const value = field[2];
+      if (!value && lines[index + 1] && /^\s*-\s+/.test(lines[index + 1])) {
+        const list = [];
+        while (lines[index + 1] && /^\s*-\s+/.test(lines[index + 1])) {
+          list.push(lines[index + 1].replace(/^\s*-\s+/, "").trim().replace(/^['"]|['"]$/g, ""));
+          index += 1;
+        }
+        data[key] = list;
+      } else {
+        data[key] = parseFrontmatterValue(value);
+      }
+    }
+    return { data, body: text.slice(match[0].length) };
+  };
+
+  const normalizeImportedDate = (value, fallback) => {
+    const text = String(value || "").trim();
+    const match = text.match(/(\d{4})[-/]?(\d{2})[-/]?(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    const parsed = new Date(value || fallback);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    return todayIso();
+  };
+
+  const markdownToPlainText = (text) => text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/!\[\[([^\]]+)\]\]/g, "[圖片：$1]")
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
+    .replace(/\[\[([^\]]+)\]\]/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^>\s*\[![^\]]+\]\s?/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+
+  const truncateSummary = (text) => {
+    const clean = text.replace(/\s+/g, " ").trim();
+    return clean.length > 80 ? `${clean.slice(0, 77)}…` : clean;
+  };
+
+  const parseObsidianFile = async (file) => {
+    const raw = await file.text();
+    const { data, body: rawBody } = parseFrontmatter(raw);
+    const sourcePath = file.webkitRelativePath || file.name;
+    const h1 = rawBody.match(/^#\s+(.+)$/m);
+    const title = String(data.title || (h1 ? h1[1].trim() : file.name.replace(/\.(md|markdown)$/i, ""))).trim();
+    const bodyWithoutTitle = h1 ? rawBody.replace(h1[0], "") : rawBody;
+    const paragraphs = markdownToPlainText(bodyWithoutTitle)
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    if (!title || !paragraphs.length) throw new Error("找不到標題或正文");
+    const inlineTags = [...raw.matchAll(/(^|\s)#([\p{L}\p{N}_-]+)/gu)].map((match) => match[2]);
+    const tags = [...new Set([...(Array.isArray(data.tags) ? data.tags : data.tags ? [data.tags] : []), ...inlineTags])]
+      .map((tag) => String(tag).replace(/^#/, "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    const sourceParts = sourcePath.split(/[\\/]/);
+    const folderName = sourceParts.length > 1 ? sourceParts[sourceParts.length - 2] : "";
+    const category = String(data.category || (categories.some((item) => item.name === folderName) ? folderName : "未分類")).trim();
+    const date = normalizeImportedDate(data.date || data.created || data.modified, file.lastModified);
+    const createdAt = file.lastModified ? new Date(file.lastModified).toISOString() : `${date}T12:00:00.000Z`;
+    return {
+      id: makeId(title),
+      title,
+      category,
+      summary: truncateSummary(String(data.summary || paragraphs[0])),
+      body: paragraphs,
+      tags: tags.length ? tags : ["Obsidian"],
+      date,
+      createdAt,
+      lastViewedAt: "",
+      readTime: `${Math.max(1, Math.ceil(paragraphs.join(" ").length / 280))} 分鐘`,
+      featured: false,
+      sourcePath
+    };
+  };
+
+  const openImportPreview = async (fileList) => {
+    const files = [...fileList].filter((file) => /\.(md|markdown)$/i.test(file.name));
+    pendingImports = [];
+    importConfirm.disabled = true;
+    importSummary.textContent = files.length ? `正在讀取 ${files.length} 個 Markdown 檔案…` : "沒有找到 .md 或 .markdown 檔案。";
+    importPreview.innerHTML = "";
+    showDialog(importDialog);
+    const errors = [];
+    for (const file of files) {
+      try {
+        pendingImports.push(await parseObsidianFile(file));
+      } catch (error) {
+        errors.push(`${file.name}：${error.message}`);
+      }
+    }
+    importPreview.innerHTML = pendingImports.map((note) => `<li><strong>${escapeHtml(note.title)}</strong><span>${escapeHtml(note.category)} · ${escapeHtml(note.sourcePath)}</span></li>`).join("");
+    const errorText = errors.length ? ` 另有 ${errors.length} 個檔案略過：${errors.join("；")}` : "";
+    importSummary.textContent = `找到 ${pendingImports.length} 則可匯入筆記。確認後會加入目前的本機清單，不會修改 Obsidian 原檔。${errorText}`;
+    importConfirm.disabled = pendingImports.length === 0;
+  };
+
+  const confirmImport = () => {
+    if (!pendingImports.length) return;
+    pendingImports.forEach((incoming) => {
+      const existingIndex = incoming.sourcePath ? notes.findIndex((note) => note.sourcePath === incoming.sourcePath) : -1;
+      const imported = { ...incoming };
+      ensureCategory(imported.category);
+      touchCategory(imported.category, "created");
+      if (existingIndex !== -1) {
+        imported.id = notes[existingIndex].id;
+        imported.lastViewedAt = notes[existingIndex].lastViewedAt;
+        notes[existingIndex] = imported;
+      } else {
+        while (notes.some((note) => note.id === imported.id)) imported.id = `${imported.id}-imported`;
+        notes.push(imported);
+      }
     });
-  });
+    saveNotes();
+    pendingImports = [];
+    obsidianInput.value = "";
+    obsidianFolderInput.value = "";
+    hideDialog(importDialog);
+    activeCategory = "all";
+    render();
+    setStorageStatus("已匯入 Obsidian 筆記", "saved");
+  };
+
+  const ensureCategory = (name) => {
+    const cleanName = name.trim();
+    let category = categories.find((item) => item.name === cleanName);
+    if (!category) {
+      const now = new Date().toISOString();
+      category = { name: cleanName, createdAt: now, lastClickedAt: "", lastCreatedAt: now };
+      categories.push(category);
+      saveCategories();
+    }
+    return category;
+  };
+
+  const resetCategoryForm = () => {
+    editingCategoryName = null;
+    categoryForm.reset();
+    categorySubmit.textContent = "新增類別";
+    categoryCancelEdit.hidden = true;
+  };
+
+  const startCategoryEdit = (name) => {
+    editingCategoryName = name;
+    categoryNameInput.value = name;
+    categorySubmit.textContent = "儲存修改";
+    categoryCancelEdit.hidden = false;
+    categoryNameInput.focus();
+  };
+
+  const saveCategoryFromForm = (event) => {
+    event.preventDefault();
+    if (!categoryForm.reportValidity()) return;
+    const nextName = categoryNameInput.value.trim();
+    const duplicate = categories.some((category) => category.name.toLowerCase() === nextName.toLowerCase() && category.name !== editingCategoryName);
+    if (duplicate) {
+      categoryNameInput.setCustomValidity("這個類別已經存在。");
+      categoryForm.reportValidity();
+      categoryNameInput.setCustomValidity("");
+      return;
+    }
+    if (editingCategoryName) {
+      const category = categories.find((item) => item.name === editingCategoryName);
+      if (category) {
+        category.name = nextName;
+        category.lastClickedAt = new Date().toISOString();
+        notes.forEach((note) => {
+          if (note.category === editingCategoryName) note.category = nextName;
+        });
+        if (activeCategory === editingCategoryName) activeCategory = nextName;
+      }
+    } else {
+      ensureCategory(nextName);
+    }
+    saveCategories();
+    saveNotes();
+    resetCategoryForm();
+    renderCategoryManager();
+    render();
+  };
+
+  const deleteCategory = (name) => {
+    const affectedNotes = notes.filter((note) => note.category === name);
+    if (affectedNotes.length && name === "未分類") {
+      window.alert("「未分類」目前有筆記使用，請先編輯這些筆記的類別。");
+      return;
+    }
+    const message = affectedNotes.length
+      ? `刪除「${name}」後，${affectedNotes.length} 則筆記會改為「未分類」。確定繼續嗎？`
+      : `確定要刪除「${name}」類別嗎？`;
+    if (!window.confirm(message)) return;
+    if (affectedNotes.length) {
+      ensureCategory("未分類");
+      affectedNotes.forEach((note) => { note.category = "未分類"; });
+    }
+    categories = categories.filter((category) => category.name !== name);
+    if (activeCategory === name) activeCategory = "all";
+    saveCategories();
+    saveNotes();
+    resetCategoryForm();
+    renderCategoryManager();
+    render();
+  };
+
+  const openCategoryManager = () => {
+    resetCategoryForm();
+    renderCategoryManager();
+    showDialog(categoryDialog);
+  };
+
+  const closeCategoryManager = () => {
+    hideDialog(categoryDialog);
+    resetCategoryForm();
+  };
+
+  const renderReminder = () => {
+    reminderText.textContent = reminder.text;
+    reminderCreated.textContent = `— 建立於 ${formatDateTime(reminder.createdAt)}`;
+  };
+
+  const openReminderEditor = () => {
+    reminderInput.value = reminder.text;
+    showDialog(reminderDialog);
+    reminderInput.focus();
+  };
+
+  const closeReminderEditor = () => hideDialog(reminderDialog);
+
+  const saveReminderFromForm = (event) => {
+    event.preventDefault();
+    if (!reminderForm.reportValidity()) return;
+    reminder = { ...reminder, text: reminderInput.value.trim() };
+    saveReminder();
+    renderReminder();
+    closeReminderEditor();
+  };
 
   searchInput.addEventListener("input", (event) => {
     activeQuery = event.target.value.trim();
@@ -314,6 +778,34 @@
   });
 
   exportButton.addEventListener("click", exportNotes);
+  importButton.addEventListener("click", () => obsidianInput.click());
+  importFolderButton.addEventListener("click", () => obsidianFolderInput.click());
+  obsidianInput.addEventListener("change", (event) => {
+    if (event.target.files?.length) openImportPreview(event.target.files);
+  });
+  obsidianFolderInput.addEventListener("change", (event) => {
+    if (event.target.files?.length) openImportPreview(event.target.files);
+  });
+  importConfirm.addEventListener("click", confirmImport);
+  importClose.addEventListener("click", () => hideDialog(importDialog));
+  importCancel.addEventListener("click", () => hideDialog(importDialog));
+  importDialog.addEventListener("click", (event) => {
+    if (event.target === importDialog) hideDialog(importDialog);
+  });
+  manageCategoriesButton.addEventListener("click", openCategoryManager);
+  categoryForm.addEventListener("submit", saveCategoryFromForm);
+  categoryCancelEdit.addEventListener("click", resetCategoryForm);
+  categoryDialogClose.addEventListener("click", closeCategoryManager);
+  categoryDialog.addEventListener("click", (event) => {
+    if (event.target === categoryDialog) closeCategoryManager();
+  });
+  editReminderButton.addEventListener("click", openReminderEditor);
+  reminderForm.addEventListener("submit", saveReminderFromForm);
+  reminderClose.addEventListener("click", closeReminderEditor);
+  reminderCancel.addEventListener("click", closeReminderEditor);
+  reminderDialog.addEventListener("click", (event) => {
+    if (event.target === reminderDialog) closeReminderEditor();
+  });
   dialogClose.addEventListener("click", closeNote);
   editNoteButton.addEventListener("click", () => {
     if (currentNoteId) openEditor(currentNoteId);
@@ -350,7 +842,7 @@
   }
   setStorageStatus(hasSavedNotes ? "已載入本機版本" : "預設筆記", "");
   document.querySelector("#current-year").textContent = String(new Date().getFullYear());
-  syncFilterButtons();
+  renderReminder();
   render();
 
   const initialId = location.hash.startsWith("#note/") ? location.hash.slice(6) : "";
