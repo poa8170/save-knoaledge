@@ -33,7 +33,7 @@
   };
 
   const renderCard = (note, index) => `
-    <article class="note-card ${note.featured ? "is-featured" : ""}" style="--card-index: ${index}">
+    <article class="note-card" style="--card-index: ${index}">
       <div class="card-topline"><span>${escapeHtml(note.category)}</span><span>${escapeHtml(note.readTime)}</span></div>
       <div class="card-content">
         <h3>${escapeHtml(note.title)}</h3>
@@ -45,9 +45,22 @@
       </div>
     </article>`;
 
+  const renderAddCard = (index) => `
+    <a class="note-card add-note-card" style="--card-index: ${index}" href="AGENTS.md" aria-label="查看新增筆記規則">
+      <div class="add-note-symbol" aria-hidden="true">＋</div>
+      <div class="card-content">
+        <h3>新增一則筆記</h3>
+        <p>依照資料格式，把下一個值得保留的想法放進知識庫。</p>
+      </div>
+      <div class="card-bottomline">
+        <span class="add-note-hint">查看新增規則</span>
+        <span class="read-button" aria-hidden="true">↗</span>
+      </div>
+    </a>`;
+
   const render = () => {
     const visibleNotes = notes.filter(noteMatches);
-    grid.innerHTML = visibleNotes.map(renderCard).join("");
+    grid.innerHTML = `${visibleNotes.map(renderCard).join("")}${renderAddCard(visibleNotes.length)}`;
     emptyState.hidden = visibleNotes.length !== 0;
     resultsCount.textContent = `顯示 ${visibleNotes.length} / ${notes.length} 則筆記`;
     clearFilters.hidden = !activeQuery && activeCategory === "all";
