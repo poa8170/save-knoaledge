@@ -55,10 +55,10 @@ Obsidian Vault 很適合當作 LLM Wiki 的 **raw sources**，但不應直接把
 3. 匯入器解析 frontmatter、第一個 H1、正文段落、標籤、日期、分類與 `[[wikilink]]`，保留 `sourcePath`，並先顯示標題、分類與來源路徑預覽。
 4. 使用者確認後，資料加入 `localStorage`；相同 `sourcePath` 再次匯入時會更新原筆記，不重複建立。
 5. 由 AI 逐篇讀取較複雜的 Markdown，保留來源檔名、相對路徑、日期、標籤與原始連結，先產生待確認的結構化資料。
-6. 將確認後的內容轉成目前筆記格式：`title` → `title`、frontmatter 的 `tags` → `tags`、`date` → `date`、正文 → `body`、人工撰寫的摘要 → `summary`。
+6. 將確認後的內容轉成目前筆記格式：`title` → `title`、frontmatter 的 `tags` → `tags`、`date` → `date`、原始正文 → `bodyMarkdown`、純文字衍生內容 → `body`、人工撰寫的摘要 → `summary`。
 7. 若要提交到 Git，從匯出的 JSON 或待審核資料更新 `content/notes.js`；網站不會自動寫回 Obsidian 或 Git。
 
-匯入時的格式限制：目前 `body` 會以純文字段落呈現，不直接渲染 Markdown HTML；圖片、表格、複雜 wikilink 與附件應先轉成可讀文字或保留來源連結，等未來確定要支援 Markdown renderer 後再擴充。不要把未經確認的 AI 摘要當成來源原文。
+匯入時的格式限制：`bodyMarkdown` 會保留原始 Markdown 的段落與換行，網頁使用安全 renderer 顯示標題、粗體、斜體、清單、引用、表格、程式碼、連結與 wikilink；不直接執行原始 HTML。圖片會保留相對或安全 URL，Obsidian 圖片嵌入若沒有對應資產則顯示文字提示。不要把未經確認的 AI 摘要當成來源原文。
 
 Obsidian Markdown 的建議轉換對照：
 
@@ -68,7 +68,8 @@ Obsidian Markdown 的建議轉換對照：
 | YAML `tags` | `tags` | 展開成 2–4 個短標籤，移除 `#` |
 | YAML `date` / `created` | `date` | 統一成 `YYYY-MM-DD` |
 | 第一段或人工摘要 | `summary` | 重新寫成 80 字以內的繁體中文摘要 |
-| H1 後的正文 | `body` | 移除 frontmatter、拆成純文字段落 |
+| H1 後的正文 | `bodyMarkdown` | 移除 frontmatter 與重複 H1，保留 Markdown、空白行與單行換行 |
+| H1 後的正文 | `body` | 由 Markdown 轉成純文字段落，供摘要與搜尋使用 |
 | 資料夾或 YAML `category` | `category` | 對應使用者管理的類別，無法對應時先放「未分類」並標記待確認 |
 | YAML `source`、原始檔名 | 備註／未來來源欄位 | 先保留在匯入報告，不放進目前公開卡片 |
 
@@ -96,6 +97,7 @@ source: https://example.com/article
   title: "一個值得保留的想法",
   category: "學習方法",
   summary: "用一句話說明這則筆記的主要收穫。",
+  bodyMarkdown: "這是第一段整理。\n\n這是第二段整理。",
   body: ["這是第一段整理。", "這是第二段整理。"],
   tags: ["筆記", "研究"],
   date: "2026-11-16",
@@ -141,7 +143,7 @@ source: https://example.com/article
 ### 檔案責任
 
 - `index.html` 只放頁面骨架與固定文案，不要把大量筆記內容硬編碼在卡片裡。
-- `content/notes.js` 是筆記的單一資料來源。卡片與詳情視窗都從這裡讀取。
+- `content/notes.js` 是預設筆記的資料來源。卡片與詳情視窗都從目前的本機筆記清單讀取；正文可保留在 `bodyMarkdown`，再由安全 renderer 顯示。
 - `script.js` 只處理互動與畫面狀態，包含篩選結果排序、新增／編輯／刪除、localStorage 與 JSON 匯出；不要在裡面散落無法重用的筆記資料。
 - `script.js` 也負責瀏覽器端 Obsidian Markdown 解析與匯入預覽；匯入來源要保留 `sourcePath`，方便同一檔案再次匯入時更新而非重複建立。
 - `styles.css` 以 CSS 變數集中管理色彩、間距與圓角；新元件優先沿用現有變數。
@@ -158,6 +160,7 @@ source: https://example.com/article
   title: "可讀的繁體中文標題",
   category: "分類名稱",
   summary: "80 字以內的摘要，說明讀者會得到什麼",
+  bodyMarkdown: "第一段內容。\n\n第二段內容。",
   body: [
     "第一段內容。",
     "第二段內容。"
@@ -174,9 +177,9 @@ source: https://example.com/article
 內容規則：
 
 1. `id` 只使用小寫英文字母、數字與連字號，且不可重複。
-2. `title`、`summary`、`body` 使用繁體中文；摘要避免與標題重複。
+2. `title`、`summary`、`bodyMarkdown` 使用繁體中文；摘要避免與標題重複。
 3. `category` 必須是目前類別清單中的名稱；新類別應透過管理介面或 `ensureCategory` 建立，不要重新寫死一組分類按鈕。
-4. `body` 使用 2–5 個短段落；每段只表達一個重點，不要把 Markdown 或 HTML 放進字串。
+4. `bodyMarkdown` 保存可顯示的 Markdown，不得放入未經處理的 HTML 或 script；`body` 是由它整理出的純文字段落，每段只表達一個重點。
 5. `date` 使用 `YYYY-MM-DD`，並以筆記實際完成或更新日期為準。
 6. `tags` 放 2–4 個可搜尋的關鍵字；不要把整句話當成標籤。
 7. 新筆記預設 `featured: false`。首頁只維持 1–3 筆精選內容，避免精選失去意義。
@@ -188,7 +191,7 @@ source: https://example.com/article
 互動規則：
 
 1. 新增、編輯與刪除都必須更新畫面、更新筆記數量並保存到 `localStorage`。
-2. 編輯既有筆記時保留原本的 `id` 與 `featured`，更新 `date` 為修改日期；正文以空白行分成 `body` 段落。
+2. 編輯既有筆記時保留原本的 `id` 與 `featured`，更新 `date` 為修改日期；編輯器保留 `bodyMarkdown` 的換行，並同步更新純文字 `body`。
 3. 刪除前必須顯示確認訊息；刪除只影響目前瀏覽器保存的筆記清單，不得修改 `content/notes.js`。
 4. 新增或編輯後應能立即重新開啟詳情視窗，確認完整內容已更新。
 5. JSON 匯出必須包含版本、匯出時間與完整筆記陣列，供備份或未來匯入流程使用。
@@ -215,6 +218,7 @@ source: https://example.com/article
 - 修改互動時，同步處理鍵盤操作、`aria` 狀態、空結果畫面與錯誤情況。
 - 修改筆記列表時，保留新增筆記方塊，並確認綠白交錯在全部、搜尋結果與分類結果中都從第一篇重新開始。
 - 修改編輯器時，確認新增、繼續編輯、刪除確認、重新整理後載入與 JSON 匯出都可用。
+- 修改 Markdown renderer 時，確認原始換行、空白段落、wikilink、外部連結、清單與程式碼不會遺失或執行未信任 HTML。
 - 修改類別時，確認新增、重新命名、刪除中的筆記轉移、最近類別排序與編輯器分類選擇都可用。
 - 修改首頁提醒時，確認提醒可保存、重新整理後仍存在，且卡片顯示建立時間。
 - 匯入 Obsidian 或其他來源時，先保留原始來源與人工確認步驟，不得直接批次覆寫 `content/notes.js` 或宣稱已完成 LLM Wiki 同步。
@@ -232,5 +236,6 @@ source: https://example.com/article
 - [ ] 新增、編輯、刪除與重新整理後的 localStorage 狀態可正常運作。
 - [ ] JSON 匯出包含完整資料，且沒有把原始來源誤當成已確認內容。
 - [ ] Obsidian `.md` 匯入會先顯示預覽，確認後才保存，且原始 Vault 沒有被修改。
+- [ ] Markdown 顯示保留 Obsidian 的換行，且 renderer 不執行未信任 HTML。
 - [ ] 沒有把秘密、API key 或個人聯絡資訊提交到儲存庫。
 - [ ] `README.md`、網站導覽與實際檔案一致。

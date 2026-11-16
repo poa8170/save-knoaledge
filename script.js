@@ -68,6 +68,10 @@
   const importConfirm = document.querySelector("#import-confirm");
   const importSummary = document.querySelector("#import-summary");
   const importPreview = document.querySelector("#import-preview");
+  const importCategoryInput = document.querySelector("#import-category");
+  const importTagsInput = document.querySelector("#import-tags");
+  const importCategoryOptions = document.querySelector("#import-category-options");
+  const applyImportMetadata = document.querySelector("#apply-import-metadata");
   let activeCategory = "all";
   let activeQuery = "";
   let currentNoteId = null;
@@ -97,6 +101,7 @@
     category: String(note.category || "學習方法"),
     summary: String(note.summary || ""),
     body: Array.isArray(note.body) ? note.body.map(String).filter(Boolean) : [],
+    bodyMarkdown: String(note.bodyMarkdown || (Array.isArray(note.body) ? note.body.join("\n\n") : "")),
     tags: Array.isArray(note.tags) ? note.tags.map(String).filter(Boolean) : [],
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(note.date || "")) ? String(note.date) : todayIso(),
     createdAt: String(note.createdAt || `${note.date || todayIso()}T12:00:00.000Z`),
@@ -277,11 +282,12 @@
   };
 
   const renderCategoryOptions = () => {
-    categoryOptions.innerHTML = categories
+    const options = categories
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"))
-      .map((category) => `<option value="${escapeHtml(category.name)}"></option>`)
-      .join("");
+      .map((category) => `<option value="${escapeHtml(category.name)}"></option>`).join("");
+    categoryOptions.innerHTML = options;
+    importCategoryOptions.innerHTML = options;
   };
 
   const renderCategoryButtons = () => {
@@ -394,6 +400,120 @@
     else element.removeAttribute("open");
   };
 
+  const isSafeUrl = (url) => /^(https?:\/\/|mailto:|\/|\.\/|\.\.\/|#)/i.test(url);
+
+  const renderInlineMarkdown = (value) => {
+    let html = escapeHtml(value);
+    html = html.replace(/!\[\[([^\]]+)\]\]/g, '<span class="markdown-attachment">[圖片：$1]</span>');
+    html = html.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (match, target, alias) => {
+      const linkedNote = notes.find((note) => note.id === target.trim() || note.title === target.trim());
+      const label = alias || target;
+      return linkedNote
+        ? `<a class="markdown-wikilink" href="#note/${escapeHtml(linkedNote.id)}" data-wikilink-id="${escapeHtml(linkedNote.id)}">${label}</a>`
+        : `<span class="markdown-wikilink">${label}</span>`;
+    });
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => (
+      isSafeUrl(url) ? `<img class="markdown-image" src="${url}" alt="${alt}" loading="lazy" />` : alt
+    ));
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => (
+      isSafeUrl(url) ? `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>` : label
+    ));
+    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    html = html.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1<em>$2</em>");
+    html = html.replace(/(^|[^_])_([^_]+)_(?!_)/g, "$1<em>$2</em>");
+    return html;
+  };
+
+  const splitTableRow = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+
+  const renderMarkdown = (source) => {
+    const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+    const blocks = [];
+    let paragraph = [];
+    const flushParagraph = () => {
+      if (paragraph.length) {
+        blocks.push(`<p>${paragraph.map(renderInlineMarkdown).join("<br />")}</p>`);
+        paragraph = [];
+      }
+    };
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (/^\s*$/.test(line)) {
+        flushParagraph();
+        continue;
+      }
+      if (/^\s*```/.test(line)) {
+        flushParagraph();
+        const code = [];
+        index += 1;
+        while (index < lines.length && !/^\s*```/.test(lines[index])) {
+          code.push(lines[index]);
+          index += 1;
+        }
+        blocks.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+        continue;
+      }
+      const heading = line.match(/^\s*(#{1,6})\s+(.+)$/);
+      if (heading) {
+        flushParagraph();
+        const level = heading[1].length;
+        blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+        continue;
+      }
+      if (/^\s*(---+|\*\s*\*\s*\*|___+)\s*$/.test(line)) {
+        flushParagraph();
+        blocks.push("<hr />");
+        continue;
+      }
+      if (/^\s*\|/.test(line) && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[index + 1])) {
+        flushParagraph();
+        const header = splitTableRow(line);
+        index += 2;
+        const rows = [];
+        while (index < lines.length && /\|/.test(lines[index]) && lines[index].trim()) {
+          rows.push(splitTableRow(lines[index]));
+          index += 1;
+        }
+        index -= 1;
+        blocks.push(`<table><thead><tr>${header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, cellIndex) => `<td>${renderInlineMarkdown(row[cellIndex] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+        continue;
+      }
+      const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
+      const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+      if (unordered || ordered) {
+        flushParagraph();
+        const isOrdered = Boolean(ordered);
+        const items = [];
+        while (index < lines.length) {
+          const item = lines[index].match(isOrdered ? /^\s*\d+[.)]\s+(.+)$/ : /^\s*[-*+]\s+(.+)$/);
+          if (!item) break;
+          items.push(`<li>${renderInlineMarkdown(item[1])}</li>`);
+          index += 1;
+        }
+        index -= 1;
+        blocks.push(`<${isOrdered ? "ol" : "ul"}>${items.join("")}</${isOrdered ? "ol" : "ul"}>`);
+        continue;
+      }
+      if (/^\s*>/.test(line)) {
+        flushParagraph();
+        const quote = [];
+        while (index < lines.length && /^\s*>/.test(lines[index])) {
+          quote.push(lines[index].replace(/^\s*>\s?/, ""));
+          index += 1;
+        }
+        index -= 1;
+        blocks.push(`<blockquote>${quote.map(renderInlineMarkdown).join("<br />")}</blockquote>`);
+        continue;
+      }
+      paragraph.push(line);
+    }
+    flushParagraph();
+    return blocks.join("");
+  };
+
   const openNote = (id, updateHash = true) => {
     const note = notes.find((item) => item.id === id);
     if (!note) return;
@@ -404,7 +524,13 @@
     document.querySelector("#dialog-category").textContent = note.category;
     document.querySelector("#dialog-title").textContent = note.title;
     document.querySelector("#dialog-meta").textContent = `${formatDate(note.date)}  ·  ${note.readTime}`;
-    document.querySelector("#dialog-body").innerHTML = note.body.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+    document.querySelector("#dialog-body").innerHTML = renderMarkdown(note.bodyMarkdown || note.body.join("\n\n"));
+    document.querySelector("#dialog-body").querySelectorAll("[data-wikilink-id]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        openNote(link.dataset.wikilinkId);
+      });
+    });
     document.querySelector("#dialog-tags").innerHTML = note.tags.map((tag) => `<span>#${escapeHtml(tag)}</span>`).join("");
     if (updateHash) history.replaceState(null, "", `#note/${note.id}`);
     showDialog(dialog);
@@ -424,7 +550,7 @@
     titleInput.value = note ? note.title : "";
     categoryInput.value = note ? note.category : (categories[0]?.name || "");
     summaryInput.value = note ? note.summary : "";
-    bodyInput.value = note ? note.body.join("\n\n") : "";
+    bodyInput.value = note ? (note.bodyMarkdown || note.body.join("\n\n")) : "";
     tagsInput.value = note ? note.tags.join(", ") : "";
     readTimeInput.value = note ? note.readTime : "";
     hideDialog(dialog);
@@ -441,7 +567,8 @@
     event.preventDefault();
     if (!editorForm.reportValidity()) return;
     const title = titleInput.value.trim();
-    const body = bodyInput.value.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+    const bodyMarkdown = bodyInput.value.replace(/\r\n/g, "\n").trim();
+    const body = markdownToPlainText(bodyMarkdown).split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
     if (!body.length) {
       bodyInput.setCustomValidity("請至少輸入一個段落。");
       bodyInput.reportValidity();
@@ -460,6 +587,7 @@
       category: categoryInput.value,
       summary: summaryInput.value.trim(),
       body,
+      bodyMarkdown,
       tags,
       date: todayIso(),
       createdAt: previous ? previous.createdAt : new Date().toISOString(),
@@ -571,12 +699,14 @@
     const h1 = rawBody.match(/^#\s+(.+)$/m);
     const title = String(data.title || (h1 ? h1[1].trim() : file.name.replace(/\.(md|markdown)$/i, ""))).trim();
     const bodyWithoutTitle = h1 ? rawBody.replace(h1[0], "") : rawBody;
+    const bodyMarkdown = bodyWithoutTitle.replace(/\r\n/g, "\n").trim();
     const paragraphs = markdownToPlainText(bodyWithoutTitle)
       .split(/\n\s*\n/)
       .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
       .filter(Boolean);
     if (!title || !paragraphs.length) throw new Error("找不到標題或正文");
-    const inlineTags = [...raw.matchAll(/(^|\s)#([\p{L}\p{N}_-]+)/gu)].map((match) => match[2]);
+    const inlineTagSource = raw.replace(/^#{1,6}\s+.*$/gm, "");
+    const inlineTags = [...inlineTagSource.matchAll(/(^|\s)#([\p{L}\p{N}_-]+)/gu)].map((match) => match[2]);
     const tags = [...new Set([...(Array.isArray(data.tags) ? data.tags : data.tags ? [data.tags] : []), ...inlineTags])]
       .map((tag) => String(tag).replace(/^#/, "").trim())
       .filter(Boolean)
@@ -592,6 +722,7 @@
       category,
       summary: truncateSummary(String(data.summary || paragraphs[0])),
       body: paragraphs,
+      bodyMarkdown,
       tags: tags.length ? tags : ["Obsidian"],
       date,
       createdAt,
@@ -602,10 +733,25 @@
     };
   };
 
+  const parseTagsInput = (value) => [...new Set(String(value || "").split(",").map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean))].slice(0, 8);
+
+  const renderImportPreview = () => {
+    importPreview.innerHTML = pendingImports.map((note, index) => `
+      <li class="import-preview-item" data-import-index="${index}">
+        <div class="import-file-heading"><strong>${escapeHtml(note.title)}</strong><span>${escapeHtml(note.sourcePath)}</span></div>
+        <div class="import-file-fields">
+          <label>分類<input class="import-note-category" type="text" list="import-category-options" value="${escapeHtml(note.category)}" /></label>
+          <label>標籤<input class="import-note-tags" type="text" value="${escapeHtml(note.tags.join(", "))}" /></label>
+        </div>
+      </li>`).join("");
+  };
+
   const openImportPreview = async (fileList) => {
     const files = [...fileList].filter((file) => /\.(md|markdown)$/i.test(file.name));
     pendingImports = [];
     importConfirm.disabled = true;
+    importCategoryInput.value = "";
+    importTagsInput.value = "";
     importSummary.textContent = files.length ? `正在讀取 ${files.length} 個 Markdown 檔案…` : "沒有找到 .md 或 .markdown 檔案。";
     importPreview.innerHTML = "";
     showDialog(importDialog);
@@ -617,14 +763,33 @@
         errors.push(`${file.name}：${error.message}`);
       }
     }
-    importPreview.innerHTML = pendingImports.map((note) => `<li><strong>${escapeHtml(note.title)}</strong><span>${escapeHtml(note.category)} · ${escapeHtml(note.sourcePath)}</span></li>`).join("");
+    renderImportPreview();
     const errorText = errors.length ? ` 另有 ${errors.length} 個檔案略過：${errors.join("；")}` : "";
     importSummary.textContent = `找到 ${pendingImports.length} 則可匯入筆記。確認後會加入目前的本機清單，不會修改 Obsidian 原檔。${errorText}`;
     importConfirm.disabled = pendingImports.length === 0;
   };
 
+  const applyImportMetadataToAll = () => {
+    const category = importCategoryInput.value.trim();
+    const sharedTags = parseTagsInput(importTagsInput.value);
+    pendingImports = pendingImports.map((note) => ({
+      ...note,
+      category: category || note.category,
+      tags: [...new Set([...note.tags, ...sharedTags])].slice(0, 8)
+    }));
+    renderImportPreview();
+  };
+
   const confirmImport = () => {
     if (!pendingImports.length) return;
+    importPreview.querySelectorAll("[data-import-index]").forEach((item) => {
+      const index = Number(item.dataset.importIndex);
+      if (!pendingImports[index]) return;
+      const category = item.querySelector(".import-note-category").value.trim();
+      const tags = parseTagsInput(item.querySelector(".import-note-tags").value);
+      pendingImports[index].category = category || pendingImports[index].category;
+      pendingImports[index].tags = tags;
+    });
     pendingImports.forEach((incoming) => {
       const existingIndex = incoming.sourcePath ? notes.findIndex((note) => note.sourcePath === incoming.sourcePath) : -1;
       const imported = { ...incoming };
@@ -787,6 +952,7 @@
     if (event.target.files?.length) openImportPreview(event.target.files);
   });
   importConfirm.addEventListener("click", confirmImport);
+  applyImportMetadata.addEventListener("click", applyImportMetadataToAll);
   importClose.addEventListener("click", () => hideDialog(importDialog));
   importCancel.addEventListener("click", () => hideDialog(importDialog));
   importDialog.addEventListener("click", (event) => {

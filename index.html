@@ -215,6 +215,18 @@
         <p class="eyebrow">OBSIDIAN IMPORT</p>
         <h2 id="import-dialog-title">確認匯入筆記</h2>
         <p class="editor-help" id="import-summary">正在讀取 Markdown…</p>
+        <div class="import-metadata">
+          <div class="form-grid">
+            <label class="field-label" for="import-category">套用分類
+              <input id="import-category" list="import-category-options" type="text" placeholder="留白則使用檔案分類" />
+              <datalist id="import-category-options"></datalist>
+            </label>
+            <label class="field-label" for="import-tags">共用標籤（附加）
+              <input id="import-tags" type="text" placeholder="例如：Hip Hop, 音樂" />
+            </label>
+          </div>
+          <button class="secondary-button" id="apply-import-metadata" type="button">套用到全部檔案</button>
+        </div>
         <ul class="import-preview" id="import-preview"></ul>
         <div class="editor-actions">
           <button class="secondary-button" id="import-cancel" type="button">取消</button>

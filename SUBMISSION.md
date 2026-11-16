@@ -2,7 +2,7 @@
 
 ## 1. 專案簡介
 
-「微光知識庫」是一個以繁體中文整理學習、設計與數位工具筆記的靜態網站。讀者可以使用關鍵字搜尋、依最近類別篩選、管理類別、依最近點擊排序、開啟編輯器、刪除筆記、設定個人提醒、預覽匯入 Obsidian Markdown 並匯出 JSON。網站使用原生 HTML、CSS 與 JavaScript，不需要建置工具；預設筆記集中在 `content/notes.js`，瀏覽器修改則保存於 `localStorage`。
+「微光知識庫」是一個以繁體中文整理學習、設計與數位工具筆記的靜態網站。讀者可以使用關鍵字搜尋、依最近類別篩選、管理類別、依最近點擊排序、開啟編輯器、刪除筆記、設定個人提醒、以 Markdown 閱讀內容、預覽匯入 Obsidian Markdown 並匯出 JSON。網站使用原生 HTML、CSS 與 JavaScript，不需要建置工具；預設筆記集中在 `content/notes.js`，瀏覽器修改則保存於 `localStorage`。
 
 ## 2. GitHub Repository
 

@@ -7,7 +7,7 @@
 - 零建置步驟：HTML、CSS、JavaScript 可直接部署到 GitHub Pages。
 - 資料與介面分離：`content/notes.js` 提供預設筆記，瀏覽器用 `localStorage` 保存新增、編輯與刪除後的版本。
 - 可延伸規則：`AGENTS.md` 定義內容格式、命名、無障礙與 AI 修改流程。
-- 具體互動：搜尋、最近類別篩選、類別管理、最近點擊排序、筆記詳情、編輯、刪除、個人提醒、Obsidian Markdown 預覽匯入與 JSON 匯出。
+- 具體互動：搜尋、最近類別篩選、類別管理、最近點擊排序、筆記詳情、Markdown 顯示、編輯、刪除、個人提醒、Obsidian Markdown 預覽匯入與 JSON 匯出。
 
 ## 網站地圖
 
@@ -28,6 +28,8 @@ python -m http.server 8000
 再開啟 <http://localhost:8000>。直接雙擊 HTML 也能看到靜態畫面，但使用伺服器更接近 GitHub Pages 的環境。
 
 新增、編輯或刪除的筆記會留在目前瀏覽器的 `localStorage`。要備份或換裝置，請在筆記列表按「匯出 JSON」。按「匯入 Obsidian 檔案」或「匯入 Vault 資料夾」可以選取 Markdown 來源，網站會先顯示預覽，確認後才加入本機清單；這個版本不會直接寫回 Git repository 或 Obsidian Vault。
+
+筆記正文保留在 `bodyMarkdown`，詳情視窗會顯示標題、粗體、斜體、清單、引用、表格、程式碼、連結與 Obsidian wikilink，並保留單行換行與空白段落。匯入預覽可設定統一分類與共用標籤，也能逐篇覆寫。
 
 ## Obsidian 與 LLM Wiki 評估
 
